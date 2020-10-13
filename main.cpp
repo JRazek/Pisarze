@@ -40,17 +40,7 @@ class Neuron{
     FFLayer * layer;
     vector<Connection*> connections;
     float output;
-    void countActivation(){
-        float sum = 0;
-        for(int i = 0; i < connections.size(); i ++){
-            Connection *c = connections.at(i);
-            sum += c->getInputNeuron()->getOutput()*c->getWeight();
-        }
-        this->output = (1.f/1.f-pow(e, -sum));
-    }
-    float getOutput(){
-        return output;
-    }
+
 public:
     Neuron(int idInLayer, FFLayer * l){
         this->idInLayer = idInLayer;
@@ -61,6 +51,20 @@ public:
     }
     void setWeight(Connection *c){
         this->connections.push_back(c);
+    }
+    void countActivation(){
+        float sum = 0;
+        for(int i = 0; i < connections.size(); i ++){
+            Connection *c = connections.at(i);
+            sum += c->getInputNeuron()->getOutput()*c->getWeight();
+        }
+        this->output = (1.f/1.f-pow(e, -sum));
+    }
+    void setOutput(float o){
+        this->output = o;
+    }
+    float getOutput(){
+        return output;
     }
 };
 class ConvolutionalLayer{
@@ -86,11 +90,15 @@ public:
     vector<Neuron *> getNeurons(){
         return neurons;
     }
-    void initRandom();
+    void initRandom(int neuronsCount);
+
+    void run();
 };
 class Network{
     vector<ConvolutionalLayer*> convolutionalLayers;
     vector<FFLayer*> ffLayers;
+    vector<float> input;
+
 public:
     Network(int convLayersCount, int ffLayersCount){
         for(int i = 0; i < convLayersCount; i ++){
@@ -100,9 +108,25 @@ public:
             ffLayers.push_back(new FFLayer(this, i));
         }
     }
+    void run(vector<float> input){
+        this->input = input;
+        //tmp until convolution;
+        //todo
+        if(input.size() == ffLayers.at(0)->getNeurons().size()){
+            for(int i = 0; i < ffLayers.size(); i ++){
+                ffLayers.at(i)->run();
+            }
+        }else{
+            cout<<"ERROR in = " << input.size() <<" exp = " << ffLayers.at(0)->getNeurons().size();
+        }
+    }
+    vector<float> getInput(){
+        return input;
+    }
 
     static double randZeroToOne(){
-        return rand() / (RAND_MAX + 1.);
+        srand((unsigned int)time(NULL));
+        return (float(rand())/float((RAND_MAX)));
     }
     vector<FFLayer *> getFFLayers(){
     	return ffLayers;
@@ -110,24 +134,47 @@ public:
     vector<ConvolutionalLayer *> getConvolutionLayers(){
     	return convolutionalLayers;
     }
-    void initRandom();
+    void initRandom(){
+        for(int i = 0; i < ffLayers.size(); i ++){
+            FFLayer * l = ffLayers.at(i);
+            l->initRandom(16);
+        }
+    }
 };
 void ConvolutionalLayer::initRandom() {
     if(idInNet != 0) {
         net->getConvolutionLayers().at(idInNet - 1);
     }
 }
-void FFLayer::initRandom() {
+void FFLayer::initRandom(int neuronsCount) {
+    for(int i = 0; i < neuronsCount; i ++){
+        Neuron * n = new Neuron(i, this);
+        neurons.push_back(n);
+    }
     if(idInNet != 0) {
        vector<Neuron *> prevV = net->getFFLayers().at(idInNet-1)->getNeurons();
-       for(int i = 0; i < neurons.size(); i ++){
-           Neuron * n = neurons.at(i);
+       for(int i = 0; i < neuronsCount; i ++){
+           Neuron * n = new Neuron(i, this);
+           neurons.push_back(n);
            for(int j = 0; j < prevV.size(); j++){
                Neuron * pn = prevV.at(j);
                Connection * c = new Connection(n, pn, net->randZeroToOne());
                 n->addConnection(c);
            }
        }
+    }
+}
+void FFLayer::run(){
+    if(idInNet == 0){
+        vector<float> output = net->getInput();
+        for(int i = 0; i < neurons.size(); i ++){
+            neurons.at(i)->setOutput(output.at(i));
+        }
+    }else {
+        for (int i = 0; i < neurons.size(); i++) {
+            Neuron *n = neurons.at(i);
+            n->countActivation();
+        }
     }
 }
 class Kernel{
@@ -163,6 +210,9 @@ public:
 };
 
 int main(){
-    Network net();
+    Network * net = new Network(0, 6);
+    net->initRandom();
+    vector<float> input = {0,2,3,4,1,2,3,1,0,2,3,4,1,2,3,1};
+    net->run(input);
     return 0;
 }
