@@ -57,7 +57,7 @@ public:
         for(int i = 0; i < connections.size(); i ++){
             Connection *c = connections.at(i);
             sum += (c->getInputNeuron()->getOutput() * c->getWeight());
-            cout<<c->getWeight();
+         //   cout<<c->getWeight();
         }
         this->output = (1.f/(1.f + pow(e, -sum)));
     }
@@ -226,7 +226,7 @@ class Population{
     vector<float> currTarget;
     float currPopulationLoss;
     int ffLayersCount;
-
+    map<Network *, float> adaptationLevel;
 
 public:
     Population(int speciesPerGeneration, float mutationRate, int ffLayersCount){
@@ -235,8 +235,10 @@ public:
         this->ffLayersCount = ffLayersCount;
     }
     void init(){
-        for(int i = 0; i < ffLayersCount; i ++){
-
+        for(int i = 0; i < speciesPerGeneration; i ++){
+            Network * specie = new Network(0, ffLayersCount);
+            specie->initRandom();
+            this->species.push_back(specie);
         }
     }
     void runTraining(vector<float> input, vector<float> target){
@@ -246,14 +248,23 @@ public:
             specie->run(input);
             vector<float> result = specie->getResult();
             if(result.size() == target.size()){
+                float loss = 0;
                 for(int j = 0; j < result.size(); j ++){
-                    totalLoss += pow((result.at(j) - target.at(j)), 2);
+                    loss += pow((result.at(j) - target.at(j)), 2);
                 }
+                adaptationLevel[specie] = (1.f/(loss))*100.f;
+                totalLoss += loss;
             }else{
                 cout<<"error";
             }
         }
         this->currPopulationLoss = totalLoss;
+    }
+    void cross(){
+        float sum = 0;
+        for (std::map<Network*, float>::iterator it=adaptationLevel.begin(); it!=adaptationLevel.end(); ++it){
+
+        }
     }
     float getCurrPopulationLoss(){
         return currPopulationLoss;
@@ -262,13 +273,11 @@ public:
 
 int main(){
     srand((unsigned int)time(NULL));
-    Network * net = new Network(0, 3);
-    net->initRandom();
-    vector<float> input = {0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6};
-    net->run(input);
-    vector<float> result = net->getResult();
-    for(int i = 0; i < result.size(); i ++){
-        cout<<result.at(i)<<"\n";
-    }
+    Population * population = new Population(12,1.f,4);
+    population->init();
+    vector<float> input = {0.44, 0.55,0.1, 0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6};
+    vector<float> output = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f ,0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,};
+    population->runTraining(input, output);
+    cout<<population->getCurrPopulationLoss();
     return 0;
 }
