@@ -56,7 +56,8 @@ public:
         float sum = 0;
         for(int i = 0; i < connections.size(); i ++){
             Connection *c = connections.at(i);
-            sum += c->getInputNeuron()->getOutput();
+            sum += (c->getInputNeuron()->getOutput() * c->getWeight());
+            cout<<c->getWeight();
         }
         this->output = (1.f/(1.f + pow(e, -sum)));
     }
@@ -125,7 +126,6 @@ public:
     }
 
     static double randZeroToOne(){
-        srand((unsigned int)time(NULL));
         return (float(rand())/float((RAND_MAX)));
     }
     vector<FFLayer *> getFFLayers(){
@@ -163,15 +163,15 @@ void FFLayer::initRandom(int neuronsCount) {
     if(idInNet != 0) {
        vector<Neuron *> prevV = net->getFFLayers().at(idInNet-1)->getNeurons();
        for(int i = 0; i < neuronsCount; i ++){
-           Neuron * n = new Neuron(i, this);
+           Neuron * n = neurons.at(i);
            for(int j = 0; j < prevV.size(); j++){
                Neuron * pn = prevV.at(j);
-               Connection * c = new Connection(n, pn, net->randZeroToOne());
+               Connection * c = new Connection(pn, n, net->randZeroToOne());
                 n->addConnection(c);
            }
        }
+       // cout<<"t";
     }
-    cout<<"t";
 }
 void FFLayer::run(){
     if(idInNet == 0){
@@ -217,9 +217,52 @@ public:
         }
     }
 };
+class Population{
+    vector<Network *> species;
+    int speciesPerGeneration;
+    float mutationRate;
+
+    vector<float> curInput;
+    vector<float> currTarget;
+    float currPopulationLoss;
+    int ffLayersCount;
+
+
+public:
+    Population(int speciesPerGeneration, float mutationRate, int ffLayersCount){
+        this->speciesPerGeneration = speciesPerGeneration;
+        this->mutationRate = mutationRate;
+        this->ffLayersCount = ffLayersCount;
+    }
+    void init(){
+        for(int i = 0; i < ffLayersCount; i ++){
+            
+        }
+    }
+    void runTraining(vector<float> input, vector<float> target){
+        float totalLoss = 0;
+        for(int i = 0; i < species.size(); i ++){
+            Network * specie = species.at(i);
+            specie->run(input);
+            vector<float> result = specie->getResult();
+            if(result.size() == target.size()){
+                for(int j = 0; j < result.size(); j ++){
+                    totalLoss += pow((result.at(j) - target.at(j)), 2);
+                }
+            }else{
+                cout<<"error";
+            }
+        }
+        this->currPopulationLoss = totalLoss;
+    }
+    float getCurrPopulationLoss(){
+        return currPopulationLoss;
+    }
+};
 
 int main(){
-    Network * net = new Network(0, 2);
+    srand((unsigned int)time(NULL));
+    Network * net = new Network(0, 3);
     net->initRandom();
     vector<float> input = {0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6};
     net->run(input);
