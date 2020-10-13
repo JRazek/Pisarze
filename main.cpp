@@ -56,9 +56,9 @@ public:
         float sum = 0;
         for(int i = 0; i < connections.size(); i ++){
             Connection *c = connections.at(i);
-            sum += c->getInputNeuron()->getOutput()*c->getWeight();
+            sum += c->getInputNeuron()->getOutput();
         }
-        this->output = (1.f/1.f-pow(e, -sum));
+        this->output = (1.f/(1.f + pow(e, -sum)));
     }
     void setOutput(float o){
         this->output = o;
@@ -140,6 +140,7 @@ public:
             l->initRandom(16);
         }
     }
+
     vector<float> getResult(){
         vector<float> result;
         vector<Neuron *> neurons = ffLayers.at(ffLayers.size()-1)->getNeurons();
@@ -163,7 +164,6 @@ void FFLayer::initRandom(int neuronsCount) {
        vector<Neuron *> prevV = net->getFFLayers().at(idInNet-1)->getNeurons();
        for(int i = 0; i < neuronsCount; i ++){
            Neuron * n = new Neuron(i, this);
-           neurons.push_back(n);
            for(int j = 0; j < prevV.size(); j++){
                Neuron * pn = prevV.at(j);
                Connection * c = new Connection(n, pn, net->randZeroToOne());
@@ -171,6 +171,7 @@ void FFLayer::initRandom(int neuronsCount) {
            }
        }
     }
+    cout<<"t";
 }
 void FFLayer::run(){
     if(idInNet == 0){
@@ -218,9 +219,9 @@ public:
 };
 
 int main(){
-    Network * net = new Network(0, 6);
+    Network * net = new Network(0, 2);
     net->initRandom();
-    vector<float> input = {0.f,2.f,3.f,4.f,1.f,2.f,3.f,1.f,0,2.f,3.f,4.f,1.f,2.f,3.f,1.f};
+    vector<float> input = {0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6,0.44,0.55,0.1,0.6};
     net->run(input);
     vector<float> result = net->getResult();
     for(int i = 0; i < result.size(); i ++){
