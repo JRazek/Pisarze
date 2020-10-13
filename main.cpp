@@ -1,6 +1,9 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <math.h>
+
+#include <stdlib.h>
 
 using namespace std;
 class Network;
@@ -10,16 +13,51 @@ class ConvolutionalLayer;
 class Connection;
 
 class Kernel;
-
+class Connection{
+    float weight;
+    Neuron * inputNeuron;
+    Neuron * outputNeuron;
+public:
+    Connection(Neuron * inputNeuron, Neuron * outputNeuron, float w){
+        this->inputNeuron = inputNeuron;
+        this->outputNeuron = outputNeuron;
+        this->weight = w;
+    }
+    void setWeight(float w){
+        this->weight = w;
+    }
+    float getWeight(){
+        return weight;
+    }
+    Neuron * getInputNeuron(){
+        return inputNeuron;
+    }
+};
 class Neuron{
+    const float e = 2.71828;
     float bias;
     int idInLayer;
     FFLayer * layer;
     vector<Connection*> connections;
+    float output;
+    void countActivation(){
+        float sum = 0;
+        for(int i = 0; i < connections.size(); i ++){
+            Connection *c = connections.at(i);
+            sum += c->getInputNeuron()->getOutput()*c->getWeight();
+        }
+        this->output = (1.f/1.f-pow(e, -sum));
+    }
+    float getOutput(){
+        return output;
+    }
 public:
     Neuron(int idInLayer, FFLayer * l){
         this->idInLayer = idInLayer;
         this->layer = l;
+    }
+    void addConnection(Connection * c){
+        this->connections.push_back(c);
     }
     void setWeight(Connection *c){
         this->connections.push_back(c);
@@ -34,33 +72,21 @@ public:
         this->net = net;
         this->idInNet = id;
     }
-    void initRandom(){
-
-    }
+    void initRandom();
 };
 class FFLayer{
     Network* net;
     int idInNet;
     vector<Neuron *> neurons;
-    bool inputLayer = false;
 public:
     FFLayer(Network *net, int id){
         this->net = net;
         this->idInNet = id;
     }
-    void setAsInputLayer(){
-        this->inputLayer = true;
+    vector<Neuron *> getNeurons(){
+        return neurons;
     }
-    void initRandom(){
-        for(int i = 0; i < neurons.size(); i++){
-            if(!inputLayer){
-                //Connection * conn = new Connection();
-                //neurons.at(i)->setWeight();
-                int prevLayer = idInNet -1;
-
-            }
-        }
-    }
+    void initRandom();
 };
 class Network{
     vector<ConvolutionalLayer*> convolutionalLayers;
@@ -74,22 +100,36 @@ public:
             ffLayers.push_back(new FFLayer(this, i));
         }
     }
+
+    static double randZeroToOne(){
+        return rand() / (RAND_MAX + 1.);
+    }
     vector<FFLayer *> getFFLayers(){
     	return ffLayers;
     }
     vector<ConvolutionalLayer *> getConvolutionLayers(){
     	return convolutionalLayers;
     }
-    void initRandom(){
-        for(int i = 0; i < convolutionalLayers.size(); i++){
-            convolutionalLayers.at(i)->initRandom();
-        }
-        for(int i = 0; i < ffLayers.size(); i++){
-            ffLayers.at(i)->initRandom();
-        }
-    }
+    void initRandom();
 };
-
+void ConvolutionalLayer::initRandom() {
+    if(idInNet != 0) {
+        net->getConvolutionLayers().at(idInNet - 1);
+    }
+}
+void FFLayer::initRandom() {
+    if(idInNet != 0) {
+       vector<Neuron *> prevV = net->getFFLayers().at(idInNet-1)->getNeurons();
+       for(int i = 0; i < neurons.size(); i ++){
+           Neuron * n = neurons.at(i);
+           for(int j = 0; j < prevV.size(); j++){
+               Neuron * pn = prevV.at(j);
+               Connection * c = new Connection(n, pn, net->randZeroToOne());
+                n->addConnection(c);
+           }
+       }
+    }
+}
 class Kernel{
     vector<vector<float>> weights;
     int idInLayer;
@@ -121,17 +161,7 @@ public:
         }
     }
 };
-class Connection{
-    float weight;
-    Neuron * inputNeuron;
-    Neuron * outputNeuron;
-public:
-    Connection(Neuron * inputNeuron, Neuron * outputNeuron, float w){
-        this->inputNeuron = inputNeuron;
-        this->outputNeuron = outputNeuron;
-        this->weight = w;
-    }
-};
+
 int main(){
     Network net();
     return 0;
