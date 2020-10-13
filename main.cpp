@@ -209,7 +209,7 @@ public:
             for(int z = 0; z < input.size(); z ++){
                 vector<float> weightSet = weights.at(z);
                 for (int i = 0; i < weightSet.size(); i ++){
-                    multidimensionalSum += ((int) input.at(z).at(x+i))*weightSet.at(i);
+                    multidimensionalSum += ((float ) input.at(z).at(x+i))*weightSet.at(i);
                 }
             }
             result.push_back(multidimensionalSum);
@@ -220,7 +220,11 @@ public:
 int main(){
     Network * net = new Network(0, 6);
     net->initRandom();
-    vector<float> input = {0,2,3,4,1,2,3,1,0,2,3,4,1,2,3,1};
+    vector<float> input = {0.f,2.f,3.f,4.f,1.f,2.f,3.f,1.f,0,2.f,3.f,4.f,1.f,2.f,3.f,1.f};
     net->run(input);
+    vector<float> result = net->getResult();
+    for(int i = 0; i < result.size(); i ++){
+        cout<<result.at(i)<<"\n";
+    }
     return 0;
 }
