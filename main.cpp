@@ -236,7 +236,7 @@ public:
     }
     void init(){
         for(int i = 0; i < ffLayersCount; i ++){
-            
+
         }
     }
     void runTraining(vector<float> input, vector<float> target){
