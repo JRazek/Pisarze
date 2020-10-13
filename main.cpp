@@ -7,18 +7,9 @@ class Network;
 class FFLayer;
 class Neuron;
 class ConvolutionalLayer;
+class Connection;
 class Kernel;
 
-class Network{
-    vector<ConvolutionalLayer> convolutionalLayers;
-    vector<FFLayer*> ffLayers;
-public:
-    Network(int convLayerCount, int ffLayersCount){
-        for(int i = 0; i < convLayerCount; i ++){
-            
-        }
-    }
-};
 class ConvolutionalLayer{
     vector<Kernel*> kernels;
     Network* net;
@@ -29,6 +20,30 @@ public:
         this->idInNet = id;
     }
 };
+class FFLayer{
+    vector<Connection*> connections;
+    Network* net;
+    int idInNet;
+public:
+    FFLayer(Network *net, int id){
+        this->net = net;
+        this->idInNet = id;
+    }
+};
+class Network{
+    vector<ConvolutionalLayer*> convolutionalLayers;
+    vector<FFLayer*> ffLayers;
+public:
+    Network(int convLayersCount, int ffLayersCount){
+        for(int i = 0; i < convLayersCount; i ++){
+            convolutionalLayers.push_back(new ConvolutionalLayer(this,i));
+        }
+        for(int i = convLayersCount; i < ffLayersCount; i ++){
+            ffLayers.push_back(new FFLayer(this, i));
+        }
+    }
+};
+
 class Kernel{
     vector<vector<float>> weights;
     int idInLayer;
@@ -59,9 +74,6 @@ public:
             result.push_back(multidimensionalSum);
         }
     }
-};
-class FFLayer{
-
 };
 class Neuron{
     float weight;
