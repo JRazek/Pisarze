@@ -260,10 +260,20 @@ public:
         }
         this->currPopulationLoss = totalLoss;
     }
+    struct RouletteElement{
+        float start;
+        float end;
+        Network * specie;
+    };
     void cross(){
         float sum = 0;
+        vector<RouletteElement*> roulette;
         for (std::map<Network*, float>::iterator it=adaptationLevel.begin(); it!=adaptationLevel.end(); ++it){
-
+            RouletteElement * r = new RouletteElement();
+            r->specie = it->first;
+            r->start = sum;
+            sum += it->second;
+            r->end = sum;
         }
     }
     float getCurrPopulationLoss(){
