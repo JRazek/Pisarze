@@ -8,8 +8,23 @@ class FFLayer;
 class Neuron;
 class ConvolutionalLayer;
 class Connection;
+
 class Kernel;
 
+class Neuron{
+    float bias;
+    int idInLayer;
+    FFLayer * layer;
+    vector<Connection*> connections;
+public:
+    Neuron(int idInLayer, FFLayer * l){
+        this->idInLayer = idInLayer;
+        this->layer = l;
+    }
+    void setWeight(Connection *c){
+        this->connections.push_back(c);
+    }
+};
 class ConvolutionalLayer{
     vector<Kernel*> kernels;
     Network* net;
@@ -19,15 +34,32 @@ public:
         this->net = net;
         this->idInNet = id;
     }
+    void initRandom(){
+
+    }
 };
 class FFLayer{
-    vector<Connection*> connections;
     Network* net;
     int idInNet;
+    vector<Neuron *> neurons;
+    bool inputLayer = false;
 public:
     FFLayer(Network *net, int id){
         this->net = net;
         this->idInNet = id;
+    }
+    void setAsInputLayer(){
+        this->inputLayer = true;
+    }
+    void initRandom(){
+        for(int i = 0; i < neurons.size(); i++){
+            if(!inputLayer){
+                //Connection * conn = new Connection();
+                //neurons.at(i)->setWeight();
+                int prevLayer = idInNet -1;
+
+            }
+        }
     }
 };
 class Network{
@@ -40,6 +72,20 @@ public:
         }
         for(int i = convLayersCount; i < ffLayersCount; i ++){
             ffLayers.push_back(new FFLayer(this, i));
+        }
+    }
+    vector<FFLayer *> getFFLayers(){
+    	return ffLayers;
+    }
+    vector<ConvolutionalLayer *> getConvolutionLayers(){
+    	return convolutionalLayers;
+    }
+    void initRandom(){
+        for(int i = 0; i < convolutionalLayers.size(); i++){
+            convolutionalLayers.at(i)->initRandom();
+        }
+        for(int i = 0; i < ffLayers.size(); i++){
+            ffLayers.at(i)->initRandom();
         }
     }
 };
@@ -75,14 +121,17 @@ public:
         }
     }
 };
-class Neuron{
+class Connection{
     float weight;
-    float bias;
-    int idInLayer;
-    Network * net;
-    FFLayer * layer;
+    Neuron * inputNeuron;
+    Neuron * outputNeuron;
+public:
+    Connection(Neuron * inputNeuron, Neuron * outputNeuron, float w){
+        this->inputNeuron = inputNeuron;
+        this->outputNeuron = outputNeuron;
+        this->weight = w;
+    }
 };
-
 int main(){
     Network net();
     return 0;
