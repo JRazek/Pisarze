@@ -140,6 +140,14 @@ public:
             l->initRandom(16);
         }
     }
+    vector<float> getResult(){
+        vector<float> result;
+        vector<Neuron *> neurons = ffLayers.at(ffLayers.size()-1)->getNeurons();
+        for(int i =0; i < neurons.size(); i ++){
+            result.push_back(neurons.at(i)->getOutput());
+        }
+        return result;
+    }
 };
 void ConvolutionalLayer::initRandom() {
     if(idInNet != 0) {
