@@ -3,6 +3,7 @@
 #include <vector>
 #include <random>
 #include <math.h>
+#include <fstream>
 
 #include <stdlib.h>
 
@@ -152,6 +153,14 @@ public:
     void addToConnList(Connection *c){
         this->connList.push_back(c);
     }
+    vector<float> getOutputFromLastLayer(){
+        vector<float> out;
+        FFLayer *last = ffLayers.at(ffLayers.size()-1);
+        for(int i = 0; i < last->getNeurons().size(); i ++){
+            out.push_back(last->getNeurons().at(i)->getOutput());
+        }
+        return out;
+    }
     void run(vector<float> input){
         this->input = input;
         //tmp until convolution;
@@ -183,6 +192,8 @@ public:
             int neurons = 16;
             if(i == ffLayers.size()-1)
                 neurons = 3;
+            else if(i == 0)
+                neurons = 40;
             l->initRandom(neurons);
         }
     }
@@ -282,36 +293,101 @@ public:
         }
     }
 };
-
-
+class TextManager{
+    const string path = "/home/user/CLionProjects/Pisarze/texts/";
+    fstream mic = fstream (path + "Mickiewicz.txt");
+    fstream sien = fstream (path + "Sienkiewicz.txt");
+    fstream prus = fstream (path + "Prus.txt");
+    const int batchSize = 40;
+public:
+    struct RandomText{
+        vector<float> text;
+        int author;
+    };
+    RandomText getRandomText(){
+        mic.seekg(0);
+        sien.seekg(0);
+        prus.seekg(0);
+        string text;
+        int author = Network::random(0, 3);
+        RandomText rt;
+        if(!(mic.good() && sien.good() && prus.good())){
+            cout<<"ERROR";
+        }
+        if(author == 0){
+            //micus
+            getline(mic, text);
+        } else if(author == 1){
+            //prusak
+            getline(sien, text);
+        } else if(author == 2){
+            //twoj stary pijany
+            getline(prus, text);
+        }
+        int randStart = Network::random(0, text.size() - batchSize);
+        vector<float> cutText;
+        if(randStart < 0){
+            cout<<"";
+        }
+        for(int i = 0; i < batchSize; i ++){
+            cutText.push_back(text[randStart + i]/255.f);
+        }
+        cout<<"";
+        rt.text = cutText;
+        rt.author = author;
+        return rt;
+    }
+};
+class Accuracy{
+    int timesMeasuredFromLastReset = 0;
+    int timesOKFromLastReset = 0;
+public:
+    void measure(TextManager::RandomText rt, vector<float> prediction){
+        float max = 0;
+        int author = -1;
+        for(int i = 0; i < prediction.size(); i ++){
+            if(prediction[i] > max) {
+                max = prediction[i];
+                author = i;
+            }
+        }
+        if(author == rt.author){
+            timesOKFromLastReset++;
+        }
+        timesMeasuredFromLastReset++;
+    }
+    float getAccuracyPercentage(){
+        return ((float)timesOKFromLastReset)/((float)timesMeasuredFromLastReset)*100.f;
+    }
+    void reset(){
+        timesMeasuredFromLastReset = 0;
+        timesOKFromLastReset = 0;
+    }
+};
 
 int main(){
-    string mic = "Mickiewicz.txt";
-    string sien = "Sienkiewicz.txt";
-    string prus = "Prus.txt";
-    const string path = "/texts/";
 
     srand((unsigned int)time(NULL));
     Network * network = new Network(10);
     network->initRandom();
-    vector<float> input = {0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6};
-    vector<float> result = network->getResult();
-    vector<float> expected = {0.0f, 0.0f, 0.0f};
+
     BackProp *backProp = new BackProp(network);
-
+    TextManager textManager;
+    Accuracy acc;
+   // vector<float> input = {0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6};
+    int resetRate = 1000;
     for(int i = 0; i < 100000; i ++){
-        int randText = network->random(0,2.99);
-        if(randText == 0){
-            //micus
-
-        } else if(randText == 1){
-            //prusak
-        } else if(randText == 2){
-            //twoj stary pijany
-        }
-        network->run(input);
+        TextManager::RandomText randomText = textManager.getRandomText();
+        vector<float> expected = {0.0f, 0.0f, 0.0f};
+        expected[randomText.author] = 0.99f;
+        network->run(randomText.text);
         backProp->learn(expected);
-        cout << "Loss = " << backProp->getLoss(expected)<<"\n";
+        acc.measure(randomText, network->getOutputFromLastLayer());
+        if((i + 1) % resetRate == 0){
+            cout << "Loss = " << backProp->getLoss(expected)<<"\n";
+            cout << "Accuracy = " << acc.getAccuracyPercentage()<<"%\n";
+            acc.reset();
+        }
     }
     return 0;
 }
