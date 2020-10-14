@@ -10,10 +10,8 @@ using namespace std;
 class Network;
 class FFLayer;
 class Neuron;
-class ConvolutionalLayer;
 class Connection;
 
-class Kernel;
 class Connection{
     float weight;
     Neuron * inputNeuron;
@@ -33,14 +31,22 @@ public:
     Neuron * getInputNeuron(){
         return inputNeuron;
     }
+    Neuron * getOutputNeuron(){
+        return outputNeuron;
+    }
 };
+
+static float sigmoid(float x){
+    static const float e = 2.71828;
+    return (1.f/(1.f + pow(e, -x)));
+}
 class Neuron{
-    const float e = 2.71828;
     float bias;
     int idInLayer;
     FFLayer * layer;
     vector<Connection*> connections;
     float output;
+    float netVal;
 
 public:
     Neuron(int idInLayer, FFLayer * l){
@@ -53,6 +59,9 @@ public:
     void setLayer(FFLayer * l){
         this->layer = l;
     }
+    FFLayer * getLayer(){
+        return layer;
+    }
     vector<Connection*> getConnections(){
         return connections;
     }
@@ -64,11 +73,13 @@ public:
         for(int i = 0; i < connections.size(); i ++){
             Connection *c = connections.at(i);
             sum += (c->getInputNeuron()->getOutput() * c->getWeight());
-         //   cout<<c->getWeight();
         }
-        float tmp = (1.f + pow(e, -sum));
-        this->output = (1.f/tmp);
+        this->netVal = sum;
+        this->output = sigmoid(sum);
         cout<<"";
+    }
+    float getNetVal(){
+        return netVal;
     }
     void setOutput(float o){
         this->output = o;
@@ -76,17 +87,6 @@ public:
     float getOutput(){
         return output;
     }
-};
-class ConvolutionalLayer{
-    vector<Kernel*> kernels;
-    Network* net;
-    int idInNet;
-public:
-    ConvolutionalLayer(Network *net, int id){
-        this->net = net;
-        this->idInNet = id;
-    }
-    void initRandom();
 };
 class FFLayer{
     Network* net;
@@ -104,21 +104,24 @@ public:
     void setNet(Network * n){
         this->net = n;
     }
+    int getIndexInNet(){
+        return idInNet;
+    }
     void run();
 };
 class Network{
-    vector<ConvolutionalLayer*> convolutionalLayers;
     vector<FFLayer*> ffLayers;
     vector<float> input;
+    vector<Connection *> connList;
 
 public:
-    Network(int convLayersCount, int ffLayersCount){
-        for(int i = 0; i < convLayersCount; i ++){
-            convolutionalLayers.push_back(new ConvolutionalLayer(this,i));
-        }
-        for(int i = convLayersCount; i < ffLayersCount; i ++){
+    Network(int ffLayersCount){
+        for(int i = 0; i < ffLayersCount; i ++){
             ffLayers.push_back(new FFLayer(this, i));
         }
+    }
+    vector<Connection * > getConnList(){
+        return connList;
     }
     Network(Network * p1, Network * p2){
         if(p1->ffLayers.size() == p2->ffLayers.size())
@@ -157,21 +160,6 @@ public:
     vector<FFLayer *> getFFLayers(){
     	return ffLayers;
     }
-    void mutate(float mutationRate){
-        for(int i = 0; i < ffLayers.size(); i ++){
-            for(int j = 0; j < ffLayers.at(i)->getNeurons().size();j++){
-                vector<Connection *> conns = ffLayers.at(i)->getNeurons().at(j)->getConnections();
-                for(int k = 0; k < conns.size(); k ++){
-                    if(random(0, 1000) <= mutationRate*10){
-                        conns.at(k)->setWeight(conns.at(k)->getWeight() + Network::random(-1,1));
-                    }
-                }
-            }
-        }
-    }
-    vector<ConvolutionalLayer *> getConvolutionLayers(){
-    	return convolutionalLayers;
-    }
     void initRandom(){
         for(int i = 0; i < ffLayers.size(); i ++){
             FFLayer * l = ffLayers.at(i);
@@ -188,11 +176,6 @@ public:
         return result;
     }
 };
-void ConvolutionalLayer::initRandom() {
-    if(idInNet != 0) {
-        net->getConvolutionLayers().at(idInNet - 1);
-    }
-}
 void FFLayer::initRandom(int neuronsCount) {
     for(int i = 0; i < neuronsCount; i ++){
         Neuron * n = new Neuron(i, this);
@@ -223,160 +206,50 @@ void FFLayer::run(){
         }
     }
 }
-class Kernel{
-    vector<vector<float>> weights;
-    int idInLayer;
-    int kernelSize;
-    ConvolutionalLayer *layer;
-public:
-    Kernel(ConvolutionalLayer* layer, int id, int kernelSize){
-        this->layer = layer;
-        this->idInLayer = id;
-        this->kernelSize = kernelSize;
-    }
-    void setWeightsZ(vector<float> weightSet, int z){
-        this->weights.at(z) = weightSet;
-    }
-    float getValue(int x, int z){
-        return weights.at(z).at(x);
-    }
-    vector<string> getConvolutionResult(vector<string> input){
-        vector<float> result;
-        for(int x = 0; x < input.at(0).size(); x++){
-            float multidimensionalSum = 0;
-            for(int z = 0; z < input.size(); z ++){
-                vector<float> weightSet = weights.at(z);
-                for (int i = 0; i < weightSet.size(); i ++){
-                    multidimensionalSum += ((float ) input.at(z).at(x+i))*weightSet.at(i);
-                }
-            }
-            result.push_back(multidimensionalSum);
-        }
-    }
-};
-class Population{
-    vector<Network *> species;
-    int speciesPerGeneration;
-    float mutationRate;
+class BackProp{
+    const float learningRate = 1;
+    Network * net;
 
-    vector<float> curInput;
-    vector<float> currTarget;
-    float currPopulationLoss;
-    int ffLayersCount;
-    map<Network *, float> adaptationLevel;
-    float bestSpecieScore;
+
+
+    float getChain(Connection *c){
+        float chain = 1;
+        float act = sigmoid(c->getOutputNeuron()->getNetVal());
+        chain *= act*(1.f- act);
+        if(c->getOutputNeuron())
+        return chain;
+    }
 
 public:
-    Population(int speciesPerGeneration, float mutationRate, int ffLayersCount){
-        this->speciesPerGeneration = speciesPerGeneration;
-        this->mutationRate = mutationRate;
-        this->ffLayersCount = ffLayersCount;
+    BackProp(Network * net){
+        this->net = net;
     }
-    float getMutationRate(){
-        return mutationRate;
-    }
-    float getBestSpecieScore(){
-        return bestSpecieScore;
-    }
-    void init(){
-        for(int i = 0; i < speciesPerGeneration; i ++){
-            Network * specie = new Network(0, ffLayersCount);
-            specie->initRandom();
-            this->species.push_back(specie);
-        }
-    }
+    void learn(vector<float> expected){
+        FFLayer * lastLayer = net->getFFLayers().at(net->getFFLayers().size()-1);
+        for(int i = 0; i < net->getConnList().size(); i ++){
+            Connection * c = net->getConnList().at(i);
+            float chain = c->getInputNeuron()->getOutput();
+            chain *= getChain(c);
+            if(c->getOutputNeuron()->getLayer()->getIndexInNet() != net->getFFLayers().size()-1){
+                FFLayer* nextLayer = net->getFFLayers().at(c->getOutputNeuron()->getLayer()->getIndexInNet()+1);
+                for(int j = 0; j < nextLayer->getNeurons().size(); j ++){
 
-    void runTraining(vector<float> input, vector<float> target){
-        float totalLoss = 0;
-
-        float bestScore = 0;
-        for(int i = 0; i < species.size(); i ++){
-            Network * specie = species.at(i);
-            specie->run(input);
-            vector<float> result = specie->getResult();
-            if(result.size() == target.size()){
-                float loss = 0;
-                for(int j = 0; j < result.size(); j ++){
-                    loss += pow((result.at(j) - target.at(j)), 2);
                 }
-                adaptationLevel[specie] = (1.f/(loss))*100.f;
-                if(loss < bestScore){
-                    bestScore = loss;
-                }
-                bestSpecieScore = bestScore;
-                totalLoss += loss;
-            }else{
-                cout<<"error";
             }
         }
-        this->currPopulationLoss = totalLoss;
-    }
-    struct RouletteElement{
-        float start;
-        float end;
-        Network * specie;
-    };
-    void cross(){
-        float sum = 0;
-        vector<RouletteElement*> roulette;
-        for (std::map<Network*, float>::iterator it=adaptationLevel.begin(); it!=adaptationLevel.end(); ++it){
-            RouletteElement * r = new RouletteElement();
-            r->specie = it->first;
-            r->start = sum;
-            sum += it->second;
-            r->end = sum;
-            roulette.push_back(r);
-        }
-        vector<Network *> children;
-        for(int i = 0; i < speciesPerGeneration; i ++){
-            float randomSpecie1 = Network::random(0, sum);
-            float randomSpecie2;
-            Network *n1 = nullptr;
-            Network *n2 = nullptr;
-            while(randomSpecie2 = Network::random(0, sum) && randomSpecie2 == randomSpecie1);
-            for(int j = 0; j < roulette.size(); j++){
-                float s = roulette.at(j)->start;
-                float e = roulette.at(j)->end;
-                if(s <= randomSpecie1 && e >= randomSpecie1){
-                    n1 = roulette.at(j)->specie;
-                }
-                if(s <= randomSpecie2 && e >= randomSpecie2){
-                    n2 = roulette.at(j)->specie;
-                }
-                if(n1 != nullptr && n2 != nullptr) break;
-            }
-            Network *child = new Network(n1,n2);
-            child->mutate(mutationRate);
-            children.push_back(child);
-        }
-        free(species);
-        this->species = children;
-        this->adaptationLevel.empty();
-    }
-    float getCurrPopulationLoss(){
-        return currPopulationLoss;
     }
 };
 
 int main(){
     srand((unsigned int)time(NULL));
-    Population * population = new Population(20,2,4);
-    population->init();
-
-    int maxIterations = 100000000;
-    int age = 1;
+    Network * network = new Network(4);
+    network->initRandom();
     vector<float> input = {0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6};
-    vector<float> output = {0.0f, 0.0f, 0.0f, 0.0f, 1.f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,0.0f, 0.0f,};
-    while(age <= maxIterations){
-        population->runTraining(input, output);
-        age++;
-        if(age % 25 == 0){
-            population->cross();
-        }
-        if(age % 100 == 0){
-            cout << "Specie Loss = " << population->getBestSpecieScore()<<"\n";
-            cout << "Loss = " << population->getCurrPopulationLoss()<<"\n";
-        }
+    network->run(input);
+    vector<float> result = network->getResult();
+    for(int  i = 0; i < result.size(); i ++){
+        cout<<result.at(i);
     }
+    vector<float> output = {0.0f, 0.0f, 0.0f, 0.0f, 1.f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,0.0f, 0.0f,};
     return 0;
 }
