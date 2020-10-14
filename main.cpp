@@ -53,6 +53,9 @@ public:
     void setLayer(FFLayer * l){
         this->layer = l;
     }
+    vector<Connection*> getConnections(){
+        return connections;
+    }
     void setWeight(Connection *c){
         this->connections.push_back(c);
     }
@@ -63,7 +66,9 @@ public:
             sum += (c->getInputNeuron()->getOutput() * c->getWeight());
          //   cout<<c->getWeight();
         }
-        this->output = (1.f/(1.f + pow(e, -sum)));
+        float tmp = (1.f + pow(e, -sum));
+        this->output = (1.f/tmp);
+        cout<<"";
     }
     void setOutput(float o){
         this->output = o;
@@ -145,7 +150,9 @@ public:
         this->ffLayers[x] = l;
     }
     static float random(float min, float max){
-        return ((max - min) * ((float)rand() / RAND_MAX)) + min;
+        float r = (max - min) * ((float)rand() / RAND_MAX) + min;
+      //  cout<<"\nrand = " << r ;
+        return r;
     }
     vector<FFLayer *> getFFLayers(){
     	return ffLayers;
@@ -153,7 +160,12 @@ public:
     void mutate(float mutationRate){
         for(int i = 0; i < ffLayers.size(); i ++){
             for(int j = 0; j < ffLayers.at(i)->getNeurons().size();j++){
-                //ffLayers.at(i)->getNeurons().at(j).
+                vector<Connection *> conns = ffLayers.at(i)->getNeurons().at(j)->getConnections();
+                for(int k = 0; k < conns.size(); k ++){
+                    if(random(0, 1000) <= mutationRate*10){
+                        conns.at(k)->setWeight(conns.at(k)->getWeight() + Network::random(-1,1));
+                    }
+                }
             }
         }
     }
@@ -252,6 +264,7 @@ class Population{
     float currPopulationLoss;
     int ffLayersCount;
     map<Network *, float> adaptationLevel;
+    float bestSpecieScore;
 
 public:
     Population(int speciesPerGeneration, float mutationRate, int ffLayersCount){
@@ -262,6 +275,9 @@ public:
     float getMutationRate(){
         return mutationRate;
     }
+    float getBestSpecieScore(){
+        return bestSpecieScore;
+    }
     void init(){
         for(int i = 0; i < speciesPerGeneration; i ++){
             Network * specie = new Network(0, ffLayersCount);
@@ -269,8 +285,11 @@ public:
             this->species.push_back(specie);
         }
     }
+
     void runTraining(vector<float> input, vector<float> target){
         float totalLoss = 0;
+
+        float bestScore = 0;
         for(int i = 0; i < species.size(); i ++){
             Network * specie = species.at(i);
             specie->run(input);
@@ -281,6 +300,10 @@ public:
                     loss += pow((result.at(j) - target.at(j)), 2);
                 }
                 adaptationLevel[specie] = (1.f/(loss))*100.f;
+                if(loss < bestScore){
+                    bestScore = loss;
+                }
+                bestSpecieScore = bestScore;
                 totalLoss += loss;
             }else{
                 cout<<"error";
@@ -323,8 +346,10 @@ public:
                 if(n1 != nullptr && n2 != nullptr) break;
             }
             Network *child = new Network(n1,n2);
+            child->mutate(mutationRate);
             children.push_back(child);
         }
+        free(species);
         this->species = children;
         this->adaptationLevel.empty();
     }
@@ -335,19 +360,22 @@ public:
 
 int main(){
     srand((unsigned int)time(NULL));
-    Population * population = new Population(12,1.f,4);
+    Population * population = new Population(20,2,4);
     population->init();
 
-    int maxIterations = 10000;
+    int maxIterations = 100000000;
     int age = 1;
     vector<float> input = {0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6};
-    vector<float> output = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,0.0f, 0.0f,};
+    vector<float> output = {0.0f, 0.0f, 0.0f, 0.0f, 1.f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,0.0f, 0.0f,};
     while(age <= maxIterations){
         population->runTraining(input, output);
-        cout << "Loss = " << population->getCurrPopulationLoss()<<"\n";
         age++;
         if(age % 25 == 0){
             population->cross();
+        }
+        if(age % 100 == 0){
+            cout << "Specie Loss = " << population->getBestSpecieScore()<<"\n";
+            cout << "Loss = " << population->getCurrPopulationLoss()<<"\n";
         }
     }
     return 0;
