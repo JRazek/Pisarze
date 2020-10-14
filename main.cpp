@@ -152,17 +152,6 @@ public:
     void addToConnList(Connection *c){
         this->connList.push_back(c);
     }
-    Network(Network * p1, Network * p2){
-        if(p1->ffLayers.size() == p2->ffLayers.size())
-            for(int i = 0; i < p1->ffLayers.size(); i ++){
-                bool r = std::rand() % 2;
-                FFLayer * l = r ? p1->ffLayers.at(i) : p2->ffLayers.at(i);
-                for(int j = 0; j < l->getNeurons().size(); j ++){
-                    l->getNeurons().at(j)->setLayer(l);
-                }
-                this->ffLayers.push_back(l);
-            }
-    }
     void run(vector<float> input){
         this->input = input;
         //tmp until convolution;
@@ -183,7 +172,6 @@ public:
     }
     static float random(float min, float max){
         float r = (max - min) * ((float)rand() / RAND_MAX) + min;
-      //  cout<<"\nrand = " << r ;
         return r;
     }
     vector<FFLayer *> getFFLayers(){
@@ -192,7 +180,10 @@ public:
     void initRandom(){
         for(int i = 0; i < ffLayers.size(); i ++){
             FFLayer * l = ffLayers.at(i);
-            l->initRandom(16);
+            int neurons = 16;
+            if(i == ffLayers.size()-1)
+                neurons = 3;
+            l->initRandom(neurons);
         }
     }
 
@@ -238,11 +229,8 @@ void FFLayer::run(){
     }
 }
 class BackProp{
-    const float learningRate = 10000;
+    const float learningRate = 1;
     Network * net;
-
-
-
     float getChain(Connection *c, vector<float> expected) {
         float chain = 1;
         float act = sigmoid(c->getOutputNeuron()->getNetVal());
@@ -279,25 +267,49 @@ public:
         return loss;
     }
     void learn(vector<float> expected){
-        FFLayer * lastLayer = net->getFFLayers().at(net->getFFLayers().size()-1);
+        if(net->getFFLayers().at(net->getFFLayers().size() - 1)->getNeurons().size() != expected.size()){
+            cout<<"ERROR!!";
+            return;
+        }
+        for(int i = 0; i < net->getConnList().size(); i ++){
+            net->getConnList().at(i)->resetChain();
+        }
         for(int i = 0; i < net->getConnList().size(); i ++){
             Connection * c = net->getConnList().at(i);
             float delta = learningRate * c->getInputNeuron()->getOutput() * getChain(c, expected);
             c->setWeight(c->getWeight() - delta);
+            cout<<"";
         }
     }
 };
 
+
+
 int main(){
+    string mic = "Mickiewicz.txt";
+    string sien = "Sienkiewicz.txt";
+    string prus = "Prus.txt";
+    const string path = "/texts/";
+
     srand((unsigned int)time(NULL));
-    Network * network = new Network(4);
+    Network * network = new Network(10);
     network->initRandom();
     vector<float> input = {0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6, 0.44, 0.55, 0.1, 0.6};
-    network->run(input);
     vector<float> result = network->getResult();
-    vector<float> expected = {0.0f, 0.0f, 0.0f, 0.0f, 1.f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,0.0f, 0.0f,};
+    vector<float> expected = {0.0f, 0.0f, 0.0f};
     BackProp *backProp = new BackProp(network);
-    for(int i = 0; i < 100; i ++){
+
+    for(int i = 0; i < 100000; i ++){
+        int randText = network->random(0,2.99);
+        if(randText == 0){
+            //micus
+
+        } else if(randText == 1){
+            //prusak
+        } else if(randText == 2){
+            //twoj stary pijany
+        }
+        network->run(input);
         backProp->learn(expected);
         cout << "Loss = " << backProp->getLoss(expected)<<"\n";
     }
